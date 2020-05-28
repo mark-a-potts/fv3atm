@@ -69,6 +69,7 @@ target_link_libraries(fv3core PRIVATE gfsphysics)
 target_link_libraries(fv3core PRIVATE ipd)
 
 target_include_directories(fv3core PRIVATE ${ESMF_MOD})
+target_include_directories(fv3core PRIVATE $ENV{NETCDF_FORTRAN}/include)
 
 # end of fv3core
 
