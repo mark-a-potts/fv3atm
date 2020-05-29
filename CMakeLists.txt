@@ -69,7 +69,8 @@ target_link_libraries(fv3core PRIVATE gfsphysics)
 target_link_libraries(fv3core PRIVATE ipd)
 
 target_include_directories(fv3core PRIVATE ${ESMF_MOD})
-target_include_directories(fv3core PRIVATE $ENV{NETCDF_FORTRAN}/include)
+target_include_directories(fv3core PRIVATE ${NetCDF_INCLUDE_DIRS})
+target_include_directories(fv3core PRIVATE ${MPI_Fortran_INCLUDE_DIRS})
 
 # end of fv3core
 
@@ -111,6 +112,7 @@ endif()
 target_include_directories(fv3cap PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/stochastic_physics)
 target_compile_definitions(fv3cap PRIVATE -DESMF_VERSION_MAJOR=${ESMF_VERSION_MAJOR})
 target_include_directories(fv3cap PRIVATE ${ESMF_MOD})
+target_include_directories(fv3cap PRIVATE ${MPI_Fortran_INCLUDE_DIRS})
 
 target_link_libraries(fv3cap PRIVATE fms)
 target_link_libraries(fv3cap PRIVATE fv3cpl)
