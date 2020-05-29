@@ -26,9 +26,10 @@ target_link_libraries(io fms)
 target_link_libraries(io ${PHYS}physics)
 target_link_libraries(io ipd)
 
-message("Hey, nemsio is ${nemsio_inc}")
+message("netcdf incs are ${NETCDF_INCLUDES}")
 target_include_directories(io PRIVATE ${ESMF_MOD})
 target_include_directories(io PRIVATE ${nemsio_inc})
+target_include_directories(io PRIVATE ${NETCDF_INCLUDES})
 
 set_target_properties(io PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod)
 target_include_directories(io PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/mod)
