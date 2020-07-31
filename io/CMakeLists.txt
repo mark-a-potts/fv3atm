@@ -40,4 +40,5 @@ target_link_libraries(io PRIVATE nemsio::nemsio)
 target_link_libraries(io PRIVATE esmf)
 
 set_target_properties(io PROPERTIES Fortran_MODULE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/mod)
+target_include_directories(io PRIVATE ${NETCDF_INCLUDE_DIRS})
 target_include_directories(io PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_BINARY_DIR}/mod>)

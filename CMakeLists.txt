@@ -70,7 +70,7 @@ target_link_libraries(fv3dycore PRIVATE gfsphysics)
 target_link_libraries(fv3dycore PRIVATE ipd)
 target_link_libraries(fv3dycore PRIVATE esmf)
 
-target_include_directories(fv3dycore PRIVATE atmos_cubed_sphere ${ESMF_MOD})
+target_include_directories(fv3dycore PRIVATE atmos_cubed_sphere ${ESMF_MOD} ${NETCDF_INCLUDE_DIRS})
 
 ###############################################################################
 ### ccpp
@@ -86,8 +86,8 @@ if(CCPP)
     target_include_directories(fv3dycore PRIVATE ${CMAKE_BINARY_DIR}/FV3/ccpp/framework/src)
     target_include_directories(fv3dycore PRIVATE ${CMAKE_BINARY_DIR}/FV3/ccpp/driver)
 
-    target_link_libraries(ccppphys PRIVATE sp::sp_d)
-    target_link_libraries(ccppphys PRIVATE w3nco::w3nco_d)
+    target_link_libraries(ccppphys PUBLIC sp::sp_d)
+    target_link_libraries(ccppphys PUBLIC w3nco::w3nco_d)
 endif()
 
 ###############################################################################
