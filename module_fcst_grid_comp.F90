@@ -401,7 +401,7 @@ if (rc /= ESMF_SUCCESS) write(0,*) 'rc=',rc,__FILE__,__LINE__; if(ESMF_LogFoundE
 !-----------------------------------------------------------------------
 !
       if (mype == 0) write(0,*)'be create fcst grid'
-      if( quilting ) then
+!     if( quilting ) then
 
         gridfile = "grid_spec.nc" ! default
 
@@ -536,7 +536,7 @@ if (rc /= ESMF_SUCCESS) write(0,*) 'rc=',rc,__FILE__,__LINE__; if(ESMF_LogFoundE
         endif
 !
 !test to write out vtk file:
-        if( cpl ) then
+       !if( cpl ) then
           call addLsmask2grid(fcstGrid, rc=rc)
           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 !         print *,'call addLsmask2grid after fcstGrid, rc=',rc
@@ -545,8 +545,9 @@ if (rc /= ESMF_SUCCESS) write(0,*) 'rc=',rc,__FILE__,__LINE__; if(ESMF_LogFoundE
 !                                   filename='fv3cap_fv3Grid', rc=rc)
 !            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 !          endif
-        endif
+       !endif
 !
+      if (quilting) then
 ! Add gridfile Attribute to the exportState
         call ESMF_AttributeAdd(exportState, convention="NetCDF", purpose="FV3", &
                                attrList=(/"gridfile"/), rc=rc)

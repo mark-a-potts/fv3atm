@@ -235,7 +235,7 @@ module fv3gfs_cap_mod
 
 !
 ! local variables
-    type(ESMF_VM)                          :: vm
+    type(ESMF_VM)                          :: vm, fcstVM
     type(ESMF_Time)                        :: CurrTime, starttime, StopTime
     type(ESMF_Time)                        :: alarm_output_hf_ring, alarm_output_ring
     type(ESMF_Time)                        :: alarm_output_hf_stop, alarm_output_stop
@@ -250,7 +250,6 @@ module fv3gfs_cap_mod
     integer                                :: i, j, k, io_unit, urc, ierr
     integer                                :: petcount, mype
     integer                                :: num_output_file
-    logical                                :: isPetLocal
     logical                                :: OPENED
     character(ESMF_MAXSTR)                 :: name
     logical                                :: fcstpe
@@ -588,9 +587,11 @@ module fv3gfs_cap_mod
     call ESMF_GridCompSetServices(fcstComp, fcstSS, userRc=urc, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc,  msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
     if (ESMF_LogFoundError(rcToCheck=urc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__, rcToReturn=rc)) return
-
+! obtain fcst VM
+    call ESMF_GridCompGet(fcstComp, vm=fcstVM, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 ! create fcst state
-    fcstState = ESMF_StateCreate(rc=rc)
+    fcstState = ESMF_StateCreate(name='fcstState',stateintent=ESMF_STATEINTENT_EXPORT,rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
 ! call fcst Initialize (including creating fcstgrid and fcst fieldbundle)
@@ -685,7 +686,7 @@ module fv3gfs_cap_mod
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
 ! create wrtstate(i)
-        wrtstate(i) = ESMF_StateCreate(rc=rc)
+        wrtstate(i) = ESMF_StateCreate(name='wrtState',stateintent=ESMF_STATEINTENT_IMPORT,rc=rc)
         if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
 
 ! add the fcst FieldBundles to the wrtState(i) so write component can
@@ -869,44 +870,45 @@ module fv3gfs_cap_mod
 !
     ! --- advertise Fields in importState and exportState -------------------
 
-    if( cpl ) then
+    ! always advertise
 
-      isPetLocal = ESMF_GridCompIsPetLocal(fcstComp, rc=rc)
-      if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    !if( cpl ) then
 
-      if (isPetLocal) then
-    
-        ! importable fields:
+       ! importable fields:
         do i = 1, size(ImportFieldsList)
           if (importFieldShare(i)) then
             call NUOPC_Advertise(importState,         &
                                  StandardName=trim(ImportFieldsList(i)), &
-                                 SharePolicyField="share", rc=rc)
+                                 SharePolicyField="share", vm=fcstVM, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
           else
             call NUOPC_Advertise(importState,         &
-                                 StandardName=trim(ImportFieldsList(i)), rc=rc)
+                                 StandardName=trim(ImportFieldsList(i)), vm=fcstVM, rc=rc)
             if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
           end if
         end do
-      
-        ! exportable fields:
-        do i = 1, size(exportFieldsList)
-          if (exportFieldShare(i)) then
-            call NUOPC_Advertise(exportState,                            &
-                                 StandardName=trim(exportFieldsList(i)), &
-                                 SharePolicyField="share", rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-          else
-            call NUOPC_Advertise(exportState,         &
-                                 StandardName=trim(exportFieldsList(i)), rc=rc)
-            if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
-          end if
-        end do
-      
-      endif
-      if(mype==0) print *,'in fv3_cap, aft import, export fields in atmos'
-    endif
+
+     !end if
+  
+     
+     ! exportable fields:
+     call ESMF_LogWrite(subname//" Advertising fv3 fields.", ESMF_LOGMSG_INFO)
+     do i = 1, size(exportFieldsList)
+        if (exportFieldShare(i)) then
+           call NUOPC_Advertise(exportState,                            &
+                StandardName=trim(exportFieldsList(i)), &
+                SharePolicyField="share", vm=fcstVM, rc=rc)
+           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+           call ESMF_LogWrite(subname//" --> SharePolicyField=share for field "//trim(exportFieldsList(i)), ESMF_LOGMSG_INFO)
+        else
+           call NUOPC_Advertise(exportState,         &
+                StandardName=trim(exportFieldsList(i)), vm=fcstVM, rc=rc)
+           if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+        end if
+     end do
+     
+     if(mype==0) print *,'in fv3_cap, aft import, export fields in atmos'
+   
 
     if(mype==0) print *,'in fv3_cap, init time=',mpi_wtime()-timeis
 !-----------------------------------------------------------------------
@@ -929,7 +931,7 @@ module fv3gfs_cap_mod
 
     ! --- conditionally realize or remove Fields in importState and exportState -------------------
 
-    if ( cpl ) then
+    !if ( cpl ) then
 
       isPetLocal = ESMF_GridCompIsPetLocal(fcstComp, rc=rc)
       if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__,  file=__FILE__)) return
@@ -955,7 +957,7 @@ module fv3gfs_cap_mod
       end if
 !jw
       call fillExportFields(exportData)
-    endif
+    !endif
 
   end subroutine InitializeRealize
 
