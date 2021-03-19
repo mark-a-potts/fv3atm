@@ -265,7 +265,6 @@ subroutine update_atmos_radiation_physics (Atmos)
       if (ierr/=0)  call mpp_error(FATAL, 'Call to stochastic_physics_wrapper failed')
 
 !--- if coupled, assign coupled fields
-
       if( GFS_control%cplflx .or. GFS_control%cplwav ) then
 
 !       if (mpp_pe() == mpp_root_pe() .and. debug) then
@@ -667,10 +666,12 @@ subroutine atmos_model_init (Atmos, Time_init, Time, Time_step)
    call atmosphere_get_bottom_layer (Atm_block, DYCORE_Data)
 
     !if in coupled mode, set up coupled fields
+    GFS_control%cplflx = .true.
     if (GFS_control%cplflx .or. GFS_control%cplwav) then
       if (mpp_pe() == mpp_root_pe()) print *,'COUPLING: IPD layer'
       call setup_exportdata(ierr)
     endif
+    GFS_control%cplflx = .false.
 
    ! Set flag for first time step of time integration
    GFS_control%first_time_step = .true.
@@ -838,9 +839,11 @@ subroutine update_atmos_model_state (Atmos)
     call atmosphere_get_bottom_layer (Atm_block, DYCORE_Data)
 
     !if in coupled mode, set up coupled fields
+    GFS_control%cplflx = .true.
     if (GFS_control%cplflx .or. GFS_control%cplwav) then
       call setup_exportdata(rc)
     endif
+    GFS_control%cplflx = .false.
 
  end subroutine update_atmos_model_state
 ! </SUBROUTINE>
@@ -1948,16 +1951,15 @@ end subroutine atmos_data_type_chksum
 
     rtime  = one / GFS_control%dtp
     rtimek = GFS_control%rho_h2o * rtime
-!    print *,'in cplExp,dim=',isc,iec,jsc,jec,'nExportFields=',nExportFields
-!    print *,'in cplExp,GFS_data, size', size(GFS_data)
-!    print *,'in cplExp,u10micpl, size', size(GFS_data(1)%coupling%u10mi_cpl)
+    print *,'in cplExp,dim=',isc,iec,jsc,jec,'nExportFields=',nExportFields
+    print *,'in cplExp,GFS_data, size', size(GFS_data)
+    print *,'in cplExp,u10micpl, size', size(GFS_data(1)%coupling%u10mi_cpl)
 
     if(.not.allocated(exportData)) then
       allocate(exportData(isc:iec,jsc:jec,nExportFields))
     endif
 
     ! set cpl fields to export Data
-
     if (GFS_control%cplflx .or. GFS_control%cplwav) then
     ! Instantaneous u wind (m/s) 10 m above ground
     idx = queryfieldlist(exportFieldsList,'inst_zonal_wind_height10m')
