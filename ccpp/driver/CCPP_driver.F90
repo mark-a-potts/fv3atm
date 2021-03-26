@@ -62,7 +62,7 @@ module CCPP_driver
     integer :: kdt_rad
 
     ierr = 0
-
+    
     if (trim(step)=="init") then
 
       ! Get and set number of OpenMP threads (module
@@ -185,7 +185,9 @@ module CCPP_driver
             ntX = nt
         end if
         !--- Call CCPP radiation/physics/stochastics group
+        GFS_control%cplflx = .false.
         call ccpp_physics_run(cdata_block(nb,ntX), suite_name=trim(ccpp_suite), group_name=trim(step), ierr=ierr2)
+        GFS_control%cplflx = .true.
         if (ierr2/=0) then
            write(0,'(2a,3(a,i4),a)') "An error occurred in ccpp_physics_run for group ", trim(step), &
                                      ", block ", nb, " and thread ", nt, " (ntX=", ntX, ")"

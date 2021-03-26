@@ -666,12 +666,10 @@ subroutine atmos_model_init (Atmos, Time_init, Time, Time_step)
    call atmosphere_get_bottom_layer (Atm_block, DYCORE_Data)
 
     !if in coupled mode, set up coupled fields
-    GFS_control%cplflx = .true.
     if (GFS_control%cplflx .or. GFS_control%cplwav) then
       if (mpp_pe() == mpp_root_pe()) print *,'COUPLING: IPD layer'
       call setup_exportdata(ierr)
     endif
-    GFS_control%cplflx = .false.
 
    ! Set flag for first time step of time integration
    GFS_control%first_time_step = .true.
@@ -839,11 +837,9 @@ subroutine update_atmos_model_state (Atmos)
     call atmosphere_get_bottom_layer (Atm_block, DYCORE_Data)
 
     !if in coupled mode, set up coupled fields
-    GFS_control%cplflx = .true.
     if (GFS_control%cplflx .or. GFS_control%cplwav) then
       call setup_exportdata(rc)
     endif
-    GFS_control%cplflx = .false.
 
  end subroutine update_atmos_model_state
 ! </SUBROUTINE>
