@@ -255,7 +255,7 @@ subroutine update_atmos_radiation_physics (Atmos)
                                  jdat(5), jdat(6), jdat(7))
       GFS_control%jdat(:) = jdat(:)
 
-!--- execute the IPD atmospheric setup step
+!--- execute the atmospheric setup step
       call mpp_clock_begin(setupClock)
       call CCPP_step (step="timestep_init", nblks=Atm_block%nblks, ierr=ierr)
       if (ierr/=0)  call mpp_error(FATAL, 'Call to CCPP timestep_init step failed')
@@ -278,8 +278,8 @@ subroutine update_atmos_radiation_physics (Atmos)
 
       endif
 
-      ! Calculate total non-physics tendencies by substracting old IPD Stateout
-      ! variables from new/updated IPD Statein variables (gives the tendencies
+      ! Calculate total non-physics tendencies by substracting old GFS Stateout
+      ! variables from new/updated GFS Statein variables (gives the tendencies
       ! due to anything else than physics)
       if (GFS_control%ldiag3d) then
         do nb = 1,Atm_block%nblks
@@ -304,7 +304,7 @@ subroutine update_atmos_radiation_physics (Atmos)
 
       if (mpp_pe() == mpp_root_pe() .and. debug) write(6,*) "radiation driver"
 
-!--- execute the IPD atmospheric radiation subcomponent (RRTM)
+!--- execute the atmospheric radiation subcomponent (RRTM)
 
       call mpp_clock_begin(radClock)
       ! Performance improvement. Only enter if it is time to call the radiation physics.
@@ -321,7 +321,7 @@ subroutine update_atmos_radiation_physics (Atmos)
 
       if (mpp_pe() == mpp_root_pe() .and. debug) write(6,*) "physics driver"
 
-!--- execute the IPD atmospheric physics step1 subcomponent (main physics driver)
+!--- execute the atmospheric physics step1 subcomponent (main physics driver)
 
       call mpp_clock_begin(physClock)
       call CCPP_step (step="physics", nblks=Atm_block%nblks, ierr=ierr)
@@ -335,7 +335,7 @@ subroutine update_atmos_radiation_physics (Atmos)
 
       if (mpp_pe() == mpp_root_pe() .and. debug) write(6,*) "stochastic physics driver"
 
-!--- execute the IPD atmospheric physics step2 subcomponent (stochastic physics driver)
+!--- execute the atmospheric physics step2 subcomponent (stochastic physics driver)
 
       call mpp_clock_begin(physClock)
       call CCPP_step (step="stochastics", nblks=Atm_block%nblks, ierr=ierr)
@@ -349,7 +349,7 @@ subroutine update_atmos_radiation_physics (Atmos)
       call getiauforcing(GFS_control,IAU_data)
       if (mpp_pe() == mpp_root_pe() .and. debug) write(6,*) "end of radiation and physics step"
 
-!--- execute the IPD atmospheric timestep finalize step
+!--- execute the atmospheric timestep finalize step
       call mpp_clock_begin(setupClock)
       call CCPP_step (step="timestep_finalize", nblks=Atm_block%nblks, ierr=ierr)
       if (ierr/=0)  call mpp_error(FATAL, 'Call to CCPP timestep_finalize step failed')
@@ -415,24 +415,6 @@ subroutine atmos_model_init (Atmos, Time_init, Time, Time_step)
 
    logunit = stdlog()
 
-!-----------------------------------------------------------------------
-! initialize atmospheric model -----
-
-   IF ( file_exist('input.nml')) THEN
-#ifdef INTERNAL_FILE_NML
-      read(input_nml_file, nml=atmos_model_nml, iostat=io)
-      ierr = check_nml_error(io, 'atmos_model_nml')
-#else
-      unit = open_namelist_file ( )
-      ierr=1
-      do while (ierr /= 0)
-         read  (unit, nml=atmos_model_nml, iostat=io, end=10)
-         ierr = check_nml_error(io,'atmos_model_nml')
-      enddo
- 10     call close_file (unit)
-#endif
-   endif
-
 !---------- initialize atmospheric dynamics after reading the namelist -------
 !---------- (need name of CCPP suite definition file from input.nml) ---------
    call atmosphere_init (Atmos%Time_init, Atmos%Time, Atmos%Time_step,&
@@ -452,6 +434,25 @@ subroutine atmos_model_init (Atmos, Time_init, Time, Time_step)
 
    Atmos%mlon = mlon
    Atmos%mlat = mlat
+
+!----------------------------------------------------------------------------------------------
+! initialize atmospheric model - must happen AFTER atmosphere_init so that nests work correctly
+
+   IF ( file_exist('input.nml')) THEN
+#ifdef INTERNAL_FILE_NML
+      read(input_nml_file, nml=atmos_model_nml, iostat=io)
+      ierr = check_nml_error(io, 'atmos_model_nml')
+#else
+      unit = open_namelist_file ( )
+      ierr=1
+      do while (ierr /= 0)
+         read  (unit, nml=atmos_model_nml, iostat=io, end=10)
+         ierr = check_nml_error(io,'atmos_model_nml')
+      enddo
+ 10     call close_file (unit)
+#endif
+   endif
+
 !-----------------------------------------------------------------------
 !--- before going any further check definitions for 'blocks'
 !-----------------------------------------------------------------------
@@ -500,7 +501,7 @@ subroutine atmos_model_init (Atmos, Time_init, Time, Time_step)
    do i = 1, ntracers
      call get_tracer_names(MODEL_ATMOS, i, tracer_names(i))
    enddo
-!--- setup IPD Init_parm
+!--- setup Init_parm
    Init_parm%me              =  mpp_pe()
    Init_parm%master          =  mpp_root_pe()
    Init_parm%tile_num        =  tile_num
@@ -667,7 +668,7 @@ subroutine atmos_model_init (Atmos, Time_init, Time, Time_step)
 
     !if in coupled mode, set up coupled fields
     if (GFS_control%cplflx .or. GFS_control%cplwav) then
-      if (mpp_pe() == mpp_root_pe()) print *,'COUPLING: IPD layer'
+      if (mpp_pe() == mpp_root_pe()) print *,'COUPLING: CCPP layer'
       call setup_exportdata(ierr)
     endif
 
@@ -868,6 +869,7 @@ subroutine update_atmos_model_state (Atmos)
 ! </INOUT>
 
 subroutine atmos_model_end (Atmos)
+  use get_stochy_pattern_mod, only: write_stoch_restart_atm
   type (atmos_data_type), intent(inout) :: Atmos
 !---local variables
   integer :: idx, seconds, ierr
@@ -877,15 +879,15 @@ subroutine atmos_model_end (Atmos)
 
     call atmosphere_end (Atmos % Time, Atmos%grid, restart_endfcst)
 
-    call stochastic_physics_wrapper_end(GFS_control)
-
     if(restart_endfcst) then
       call FV3GFS_restart_write (GFS_data, GFS_restart_var, Atm_block, &
                                  GFS_control, Atmos%domain)
+      call write_stoch_restart_atm('RESTART/atm_stoch.res.nc')
     endif
+    call stochastic_physics_wrapper_end(GFS_control)
 
 !   Fast physics (from dynamics) are finalized in atmosphere_end above;
-!   standard/slow physics (from IPD) are finalized in CCPP_step 'finalize'.
+!   standard/slow physics (from CCPP) are finalized in CCPP_step 'finalize'.
 !   The CCPP framework for all cdata structures is finalized in CCPP_step 'finalize'.
     call CCPP_step (step="finalize", nblks=Atm_block%nblks, ierr=ierr)
     if (ierr/=0)  call mpp_error(FATAL, 'Call to CCPP finalize step failed')
@@ -1611,10 +1613,10 @@ end subroutine atmos_data_type_chksum
                   if (GFS_data(nb)%Sfcprop%oceanfrac(ix) > zero .and.  datar8(i,j) > zorlmin) then
                     tem = 100.0_GFS_kind_phys * min(0.1_GFS_kind_phys, datar8(i,j))
 !                   GFS_data(nb)%Coupling%zorlwav_cpl(ix) = tem
-                    GFS_data(nb)%Sfcprop%zorlo(ix)        = tem
                     GFS_data(nb)%Sfcprop%zorlw(ix)        = tem
+                    GFS_data(nb)%Sfcprop%zorlwav(ix)      = tem
                   else
-                    GFS_data(nb)%Sfcprop%zorlw(ix) = -999.0_GFS_kind_phys
+                    GFS_data(nb)%Sfcprop%zorlwav(ix) = -999.0_GFS_kind_phys
 
                   endif
                 enddo
@@ -2617,6 +2619,20 @@ end subroutine atmos_data_type_chksum
         enddo
       enddo
     endif
+
+   ! oceanfrac used by atm to calculate fluxes
+    idx = queryfieldlist(exportFieldsList,'openwater_frac_in_atm')
+    if (idx > 0 ) then
+!$omp parallel do default(shared) private(i,j,nb,ix)
+      do j=jsc,jec
+        do i=isc,iec
+          nb = Atm_block%blkno(i,j)
+          ix = Atm_block%ixp(i,j)
+          exportData(i,j,idx) = (one - GFS_Data(nb)%Sfcprop%fice(ix))*GFS_Data(nb)%Sfcprop%oceanfrac(ix)
+        enddo
+      enddo
+    endif
+
     endif !cplflx
 
 !---
