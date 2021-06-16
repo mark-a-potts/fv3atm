@@ -20,7 +20,8 @@ module fv3gfs_cap_mod
                                     model_label_Advance     => label_Advance,     &
                                     model_label_CheckImport => label_CheckImport, &
                                     model_label_Finalize    => label_Finalize,    &
-                                    NUOPC_ModelGet
+                                    NUOPC_ModelGet,                               &
+                                    SetVM
 !
   use module_fv3_config,      only: quilting,                                &
                                     nfhout, nfhout_hf, nsout, dt_atmos,      &
@@ -60,7 +61,7 @@ module fv3gfs_cap_mod
 
   implicit none
   private
-  public SetServices
+  public SetServices, SetVM
 !
 !-----------------------------------------------------------------------
 !
