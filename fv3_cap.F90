@@ -58,7 +58,7 @@ module fv3gfs_cap_mod
 
   implicit none
   private
-  public SetServices, SetVM
+  public SetServices
 !
 !-----------------------------------------------------------------------
 !
@@ -245,6 +245,8 @@ module fv3gfs_cap_mod
     character(len=*),parameter             :: subname='(fv3_cap:InitializeAdvertise)'
     integer                                :: nfmout, nfsout , nfmout_hf, nfsout_hf
     real(kind=8)                           :: MPI_Wtime, timewri, timeis,timeie,timerhs, timerhe
+  
+    type(ESMF_Info):                       :: parentInfo, fcstInfo
 !
 !------------------------------------------------------------------------
 !
@@ -454,6 +456,18 @@ module fv3gfs_cap_mod
     enddo
     fcstComp = ESMF_GridCompCreate(petList=fcstPetList, name='fv3_fcst', rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+!
+    ! copy attributes from fv3cap component to fcstComp
+    call ESMF_InfoGetFromHost(gcomp, info=parentInfo, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc,  msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    call ESMF_InfoGetFromHost(fcstComp, info=fcstInfo, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc,  msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    call ESMF_InfoUpdate(lhs=fcstInfo, rhs=parentInfo, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc,  msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    ! use the generic SetVM method to do resource and threading control
+    call ESMF_GridCompSetVM(fcstComp, SetVM, userRc=urc, rc=rc)
+    if (ESMF_LogFoundError(rcToCheck=rc,  msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
+    if (ESMF_LogFoundError(rcToCheck=urc, msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__, rcToReturn=rc)) return
 !
     call ESMF_GridCompSetServices(fcstComp, fcstSS, userRc=urc, rc=rc)
     if (ESMF_LogFoundError(rcToCheck=rc,  msg=ESMF_LOGERR_PASSTHRU, line=__LINE__, file=__FILE__)) return
